@@ -3,217 +3,163 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mapa de Tráfico de Catalunya</title>
+    <title>Cámaras de Tráfico - Rutas Cam</title>
     
-    <!-- Tailwind CSS for styling -->
+    <!-- Estilos de diseño (Tailwind) -->
     <script src="https://cdn.tailwindcss.com"></script>
     
-    <!-- Leaflet CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <!-- Librerías del Mapa (Leaflet y Routing Machine) -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
     
-    <!-- Leaflet Routing Machine CSS -->
-    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
-
     <style>
-        /* Base styles to ensure full height */
-        html, body {
-            height: 100%;
-            margin: 0;
-            padding: 0;
-            overflow: hidden; /* Prevent scrolling of the whole page */
-        }
-
-        /* Custom scrollbar for the sidebar */
-        #sidebar::-webkit-scrollbar {
-            width: 8px;
-        }
-        #sidebar::-webkit-scrollbar-track {
-            background: #1f2937; /* gray-800 */
-        }
-        #sidebar::-webkit-scrollbar-thumb {
-            background: #4b5563; /* gray-600 */
-            border-radius: 4px;
-        }
-        #sidebar::-webkit-scrollbar-thumb:hover {
-            background: #6b7280; /* gray-500 */
-        }
-
-        /* Hide the default Leaflet Routing Machine itinerary container to keep UI clean */
-        .leaflet-routing-container {
-            display: none !important;
-        }
-
-        /* Custom camera icon styling */
-        .camera-icon {
-            font-size: 24px;
-            text-align: center;
-            line-height: 24px;
-            text-shadow: 0px 0px 4px rgba(255, 255, 255, 0.8);
-        }
-
-        /* Blinking red dot animation for "REC" state */
-        @keyframes pulse-red {
-            0%, 100% { opacity: 1; transform: scale(1); }
-            50% { opacity: 0.5; transform: scale(1.2); }
-        }
-        .rec-dot {
-            display: inline-block;
-            width: 10px;
-            height: 10px;
-            background-color: #ef4444; /* text-red-500 */
-            border-radius: 50%;
-            margin-right: 6px;
-            animation: pulse-red 1.5s infinite ease-in-out;
-        }
+        body { margin: 0; padding: 0; display: flex; height: 100vh; background-color: #1a1a1a; color: white; }
+        #sidebar { width: 380px; background-color: #111827; overflow-y: auto; display: flex; flex-direction: column; }
+        #map { flex-grow: 1; height: 100vh; }
+        
+        /* Personalizar la barra de desplazamiento lateral */
+        #sidebar::-webkit-scrollbar { width: 8px; }
+        #sidebar::-webkit-scrollbar-track { background: #1f2937; }
+        #sidebar::-webkit-scrollbar-thumb { background: #4b5563; border-radius: 4px; }
+        
+        /* Icono de las cámaras en el mapa */
+        .icono-cam { font-size: 16px; text-align: center; }
     </style>
 </head>
-<body class="flex h-screen w-screen bg-gray-900 text-white font-sans">
+<body>
 
-    <!-- Sidebar Container -->
-    <div id="sidebar" class="w-[350px] h-full flex flex-col border-r border-gray-700 bg-gray-900 z-10 flex-shrink-0 shadow-xl overflow-y-auto">
-        <div class="p-6 border-b border-gray-700 sticky top-0 bg-gray-900 z-20 shadow-md">
-            <h1 class="text-2xl font-bold text-white flex items-center">
-                <span class="mr-2">🎥</span> Cámaras en Ruta
-            </h1>
-            <p class="text-gray-400 text-sm mt-2">
-                Haz clic en cualquier punto del mapa para establecer un destino. Las cámaras de tráfico activas a menos de 10km de tu ruta aparecerán aquí.
-            </p>
-            <div class="mt-4 p-3 bg-gray-800 rounded-lg text-sm border border-gray-700">
-                <span class="font-semibold text-blue-400">Origen:</span> Roda de Barà
-            </div>
+    <!-- Barra Lateral -->
+    <div id="sidebar" class="p-6 shadow-lg z-10 flex-shrink-0 border-r border-gray-800">
+        <h1 class="text-2xl font-bold mb-2 flex items-center gap-2">
+            🎥 Cámaras en Ruta
+        </h1>
+        <p class="text-sm text-gray-400 mb-4">
+            Haz clic en cualquier punto del mapa para establecer un destino. Las cámaras de tráfico activas a menos de 5km de tu ruta aparecerán aquí.
+        </p>
+        
+        <div class="bg-blue-900/30 border border-blue-800 text-blue-300 px-4 py-2 rounded-md text-sm mb-6">
+            <span class="font-bold">Origen:</span> Roda de Barà
         </div>
-
-        <!-- Camera List Container -->
-        <div id="camera-list" class="p-4 flex-1">
-            <!-- Initial state message -->
-            <div id="empty-state" class="text-center text-gray-500 mt-10">
-                <svg class="w-16 h-16 mx-auto mb-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7"></path></svg>
+        
+        <!-- CONTENEDOR DINÁMICO: Aquí se inyectarán las fotos reales -->
+        <div class="caja-resultados-camaras">
+            <!-- Mensaje por defecto antes de hacer clic en el mapa -->
+            <div class="flex flex-col items-center justify-center text-gray-500 mt-10 text-center">
+                <svg class="w-12 h-12 mb-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L16 4m0 13V4m0 0L9 7"></path>
+                </svg>
                 <p>Selecciona un destino en el mapa para iniciar.</p>
             </div>
         </div>
     </div>
 
-    <!-- Map Container -->
-    <div id="map" class="flex-1 h-full w-full z-0 relative"></div>
+    <!-- Contenedor del Mapa -->
+    <div id="map"></div>
 
-    <!-- Leaflet JS -->
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
-    <!-- Leaflet Routing Machine JS -->
-    <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
-
+    <!-- Scripts de Leaflet -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
+    
+    <!-- Lógica de la Aplicación -->
     <script>
-        // 1. Inicializar el mapa desde Roda de Barà
-		const origenCoords = [41.1833, 1.4500];
-		const map = L.map('map').setView(origenCoords, 9);
+        // 1. Inicializar el mapa desde tu municipio
+        const origenCoords = [41.1833, 1.4500];
+        const map = L.map('map').setView(origenCoords, 9);
 
-		L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-			attribution: '© OpenStreetMap contributors'
-		}).addTo(map);
+        // Mapa base de OpenStreetMap
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
 
-		L.marker(origenCoords).addTo(map).bindPopup('Origen Fijo<br>Roda de Barà');
-		let controlRuta = null;
-		let todasLasCamaras = [];
-		const rutaPolyline = [];
+        L.marker(origenCoords).addTo(map).bindPopup('Origen Fijo<br>Roda de Barà');
+        
+        let controlRuta = null;
+        let todasLasCamaras = [];
 
-		// 2. Cargar datos reales de la Generalitat de Catalunya
-		async function cargarCamarasOficiales() {
-			try {
-				// API pública de Datos Abiertos de Trànsit
-				const respuesta = await fetch("https://analisi.transparenciacatalunya.cat/resource/yqwd-vj5e.json");
-				const datos = await respuesta.json();
-				
-				todasLasCamaras = datos.map(cam => {
-					return {
-						nombre: cam.carretera + " (Km " + cam.quil_metre + ")",
-						lat: parseFloat(cam.latitud),
-						lng: parseFloat(cam.longitud),
-						urlImagen: cam.url
-					};
-				}).filter(cam => !isNaN(cam.lat) && !isNaN(cam.lng) && cam.urlImagen);
+        // 2. Cargar datos reales de la Generalitat
+        async function cargarCamarasOficiales() {
+            try {
+                const respuesta = await fetch("https://analisi.transparenciacatalunya.cat/resource/yqwd-vj5e.json");
+                const datos = await respuesta.json();
+                
+                todasLasCamaras = datos.map(cam => {
+                    return {
+                        nombre: cam.carretera + (cam.quil_metre ? " (Km " + cam.quil_metre + ")" : ""),
+                        lat: parseFloat(cam.latitud),
+                        lng: parseFloat(cam.longitud),
+                        urlImagen: cam.url
+                    };
+                }).filter(cam => !isNaN(cam.lat) && !isNaN(cam.lng) && cam.urlImagen);
 
-				// Dibujar chinchetas en el mapa
-				todasLasCamaras.forEach(cam => {
-					const iconoCamara = L.divIcon({
-						html: '📷',
-						className: 'icono-cam',
-						iconSize: [20, 20]
-					});
-					L.marker([cam.lat, cam.lng], {icon: iconoCamara})
-					 .bindPopup(`<b>${cam.nombre}</b>`)
-					 .addTo(map);
-				});
-				
-				console.log(`¡Cargadas ${todasLasCamaras.length} cámaras!`);
-			} catch (error) {
-				console.error("Error cargando cámaras oficiales:", error);
-			}
-		}
+                todasLasCamaras.forEach(cam => {
+                    const iconoCamara = L.divIcon({ html: '📷', className: 'icono-cam', iconSize: [20, 20] });
+                    L.marker([cam.lat, cam.lng], {icon: iconoCamara})
+                     .bindPopup(`<b>${cam.nombre}</b>`)
+                     .addTo(map);
+                });
+            } catch (error) {
+                console.error("Error cargando cámaras oficiales:", error);
+            }
+        }
 
-		// 3. Lógica para calcular ruta y mostrar imágenes en la barra
-		map.on('click', function(e) {
-			const destinoCoords = e.latlng;
+        // 3. Trazar ruta al hacer clic en el mapa
+        map.on('click', function(e) {
+            const destinoCoords = e.latlng;
+            if (controlRuta) { map.removeControl(controlRuta); }
 
-			if (controlRuta) { map.removeControl(controlRuta); }
+            controlRuta = L.Routing.control({
+                waypoints: [ L.latLng(origenCoords[0], origenCoords[1]), destinoCoords ],
+                language: 'es',
+                show: false,
+                createMarker: function(i, wp, nWps) {
+                    if (i === nWps - 1) return L.marker(wp.latLng).bindPopup('Destino');
+                    return null;
+                }
+            }).on('routesfound', function(e) {
+                actualizarBarraLateral(e.routes[0].coordinates);
+            }).addTo(map);
+        });
 
-			controlRuta = L.Routing.control({
-				waypoints: [ L.latLng(origenCoords[0], origenCoords[1]), destinoCoords ],
-				language: 'es',
-				show: false,
-				createMarker: function(i, wp, nWps) {
-					if (i === nWps - 1) return L.marker(wp.latLng).bindPopup('Destino');
-					return null;
-				}
-			}).on('routesfound', function(e) {
-				// Extraer puntos de la ruta trazada
-				const coordenadasRuta = e.routes[0].coordinates;
-				actualizarBarraLateral(coordenadasRuta);
-			}).addTo(map);
-		});
+        // 4. Calcular distancia matemática
+        function calcularDistancia(lat1, lon1, lat2, lon2) {
+            const R = 6371; 
+            const dLat = (lat2 - lat1) * Math.PI / 180;
+            const dLon = (lon2 - lon1) * Math.PI / 180;
+            const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                      Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                      Math.sin(dLon/2) * Math.sin(dLon/2);
+            return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        }
 
-		// Función matemática básica para distancia
-		function calcularDistancia(lat1, lon1, lat2, lon2) {
-			const R = 6371; // Radio de la Tierra en km
-			const dLat = (lat2 - lat1) * Math.PI / 180;
-			const dLon = (lon2 - lon1) * Math.PI / 180;
-			const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
-					  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
-					  Math.sin(dLon/2) * Math.sin(dLon/2);
-			return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-		}
+        // 5. Mostrar fotos en la barra lateral
+        function actualizarBarraLateral(coordenadasRuta) {
+            const camarasEnRuta = todasLasCamaras.filter(cam => {
+                return coordenadasRuta.some(punto => calcularDistancia(cam.lat, cam.lng, punto.lat, punto.lng) < 5);
+            });
 
-		// Filtrar cámaras cercanas a la línea de la ruta
-		function actualizarBarraLateral(coordenadasRuta) {
-			const contenedorLateral = document.getElementById('sidebar-content') || document.body; // Asegurar contenedor
-			
-			// Buscar cámaras que estén a menos de 5km de algún punto de la ruta trazada
-			const camarasEnRuta = todasLasCamaras.filter(cam => {
-				return coordenadasRuta.some(punto => calcularDistancia(cam.lat, cam.lng, punto.lat, punto.lng) < 5);
-			});
+            let html = `<h3 class="font-bold text-lg mb-4 text-green-400">${camarasEnRuta.length} cámara(s) detectada(s)</h3>`;
+            
+            if(camarasEnRuta.length === 0) {
+                html += `<p class="text-gray-400 text-sm">No hay cámaras de la Generalitat a menos de 5km de esta ruta.</p>`;
+            }
 
-			// Limpiar barra lateral y construir HTML de las imágenes
-			let html = `<h3>${camarasEnRuta.length} cámara(s) en tu ruta</h3>`;
-			camarasEnRuta.forEach(cam => {
-				// Forzamos actualización de imagen con un timestamp para evitar la caché del navegador
-				const imagenRefresh = `${cam.urlImagen}?t=${new Date().getTime()}`;
-				html += `
-					<div style="background:#222; margin-bottom: 15px; padding: 10px; border-radius: 8px;">
-						<p style="color:white; margin: 0 0 10px 0; font-weight: bold;">🔴 LIVE - ${cam.nombre}</p>
-						<img src="${imagenRefresh}" style="width: 100%; border-radius: 4px; border: 1px solid #444;" alt="Cámara en ${cam.nombre}" onerror="this.src='https://via.placeholder.com/400x225?text=Imagen+no+disponible'">
-					</div>
-				`;
-			});
-			
-			// Insertar en tu barra lateral (ajusta el ID según tu index.html)
-			const cajaDestino = document.querySelector('.caja-resultados-camaras'); // Sustituye por la clase de tu div
-			if(cajaDestino) {
-				cajaDestino.innerHTML = html;
-			} else {
-				console.warn("No encontré el contenedor de la barra lateral en el HTML.");
-			}
-		}
+            camarasEnRuta.forEach(cam => {
+                const imagenRefresh = `${cam.urlImagen}?t=${new Date().getTime()}`;
+                html += `
+                    <div class="bg-gray-800 mb-4 p-3 rounded-lg border border-gray-700 shadow-sm">
+                        <div class="flex items-center gap-2 mb-2">
+                            <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+                            <p class="text-white text-sm font-bold uppercase tracking-wider truncate" title="${cam.nombre}">${cam.nombre}</p>
+                        </div>
+                        <img src="${imagenRefresh}" class="w-full rounded border border-gray-600" alt="Cámara ${cam.nombre}" onerror="this.src='https://via.placeholder.com/400x225/333333/ffffff?text=Se%C3%B1al+Perdida'">
+                    </div>
+                `;
+            });
+            
+            document.querySelector('.caja-resultados-camaras').innerHTML = html;
+        }
 
-		// Iniciar proceso
-		cargarCamarasOficiales();
+        cargarCamarasOficiales();
     </script>
 </body>
 </html>
