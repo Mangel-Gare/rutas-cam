@@ -77,17 +77,24 @@
         let todasLasCamaras = [];
 
         // 2. Cargar datos reales de la Generalitat
+        // 2. Cargar datos reales de la Generalitat (Versión corregida y robusta)
         async function cargarCamarasOficiales() {
             try {
-                const respuesta = await fetch("https://analisi.transparenciacatalunya.cat/resource/yqwd-vj5e.json");
+                // Enlace corregido con el ID oficial (3tzz-6b9y)
+                const respuesta = await fetch("https://analisi.transparenciacatalunya.cat/resource/3tzz-6b9y.json");
                 const datos = await respuesta.json();
                 
                 todasLasCamaras = datos.map(cam => {
+                    // Búsqueda inteligente de propiedades por si la Generalitat cambia los nombres
+                    const lat = parseFloat(cam.latitud || cam.lat || (cam.coordenades && cam.coordenades.latitude));
+                    const lng = parseFloat(cam.longitud || cam.lon || cam.lng || (cam.coordenades && cam.coordenades.longitude));
+                    const urlImagen = cam.url || cam.imatge || cam.url_imatge || cam.enllac;
+                    
                     return {
-                        nombre: cam.carretera + (cam.quil_metre ? " (Km " + cam.quil_metre + ")" : ""),
-                        lat: parseFloat(cam.latitud),
-                        lng: parseFloat(cam.longitud),
-                        urlImagen: cam.url
+                        nombre: (cam.carretera || "Cámara") + (cam.quil_metre ? " (Km " + cam.quil_metre + ")" : ""),
+                        lat: lat,
+                        lng: lng,
+                        urlImagen: urlImagen
                     };
                 }).filter(cam => !isNaN(cam.lat) && !isNaN(cam.lng) && cam.urlImagen);
 
@@ -97,6 +104,8 @@
                      .bindPopup(`<b>${cam.nombre}</b>`)
                      .addTo(map);
                 });
+                
+                console.log(`¡Cargadas ${todasLasCamaras.length} cámaras correctamente!`);
             } catch (error) {
                 console.error("Error cargando cámaras oficiales:", error);
             }
